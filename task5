@@ -1,0 +1,116 @@
+#include <iostream>
+#include <TMath.h>
+#include <TF1.h>
+#include <math.h>
+using namespace std;
+int N = 1e6;
+
+void reverse_method(){
+    TCanvas *cs = new TCanvas();
+    TH1D* hist = new TH1D("h","distribution; x; entries",300,-10.0,10.0);
+    TRandom3 *rand = new TRandom3(0);
+    for (int  i=0; i<N;i++){
+        double r = rand->Rndm();
+        double x = sqrt(-TMath::Log(1-r));
+        hist->Fill(x);
+        
+    }
+    hist->Draw();
+}
+
+
+double int_mean(){
+    double sum;
+    TRandom3 *rand = new TRandom3(0);
+    
+    for (int  i=0; i<N;i++){
+        double r = rand->Rndm();
+        sum = sum + TMath::Exp(-r)*pow(r,3);
+    }
+    return sum/N;
+}
+
+
+double int_geom(){
+    float n =0;
+    TRandom3 *rand = new TRandom3(0);
+    double M = 1/TMath::E();
+    for (int  i=0; i<N;i++){
+        double x = rand->Rndm();
+        double y = (rand->Rndm())*M;
+        if (y<=(TMath::Exp(-x)*pow(x,3))){
+            n++;
+        }
+    }
+    return n * M /N;
+}
+
+
+double int_appr(){
+    double sum =0.;
+    TRandom3 *rand = new TRandom3(0);
+    for (int  i=0; i<N;i++){
+        double r = rand->Rndm();
+        double x = pow(r,1./4); //генерируем х методом обратной функции от x^2/3
+        sum = sum + TMath::Exp(-x)/4;
+    }
+    return sum/N;
+}
+
+void task5(){
+//first
+
+reverse_method();
+
+// //second
+
+//     double Icorr = 6 - 16/TMath::E();
+
+//     double I1 = int_mean();        
+//     cout <<"Интеграл через среднее значение: " << I1 << ". Разница: "<< fabs(I1-Icorr) << endl;
+
+//     double I2 = int_geom(); 
+//     cout <<"Интеграл через геометрический алгоритм: " << I2 << ". Разница: "<< fabs(I2-Icorr) << endl;
+
+//     double I3 = int_appr(); 
+//     cout <<"Интеграл через выделение главной части: " << I3 << ". Разница: "<< fabs(I3-Icorr)  << endl;
+   
+// //third
+
+//     TCanvas *cs = new TCanvas();
+
+//     TH1D* hist1 = new TH1D("mean","Mean:",200,0.11,0.12);
+//     TH1D* hist2 = new TH1D("geom","Geometric",200,0.11,0.12);
+//     TH1D* hist3 = new TH1D("main","Main part",200,0.11,0.12);
+    
+//     N = 1000;
+//     while (N < 1e6){
+//         hist1 -> Fill(int_mean());
+//         hist2 -> Fill(int_geom());
+//         hist3 -> Fill(int_appr());
+//         N = N+1000;
+//     }
+
+//     hist3 -> Draw("P PMC");
+//     hist2 -> Draw("P SAMES PMC");
+//     hist1 -> Draw("P SAMES PMC");
+    
+//     gStyle->SetOptStat(1101);
+//     gStyle->SetOptTitle(0);
+ 
+//     hist1->SetMarkerStyle(kFullCircle);
+//     hist1 -> SetFillColor(kRed);
+//     hist2->SetMarkerStyle(kFullSquare);
+//     hist2 -> SetFillColor(kBlue);
+//     hist3->SetMarkerStyle(kFullTriangleUp);
+//     hist3 -> SetFillColor(kGreen);
+
+//     gPad->Update();
+//     TPaveStats *st = (TPaveStats*)hist1->FindObject("stats");
+//     st->SetX1NDC(0.1); 
+//     st->SetX2NDC(0.3);
+//     TPaveStats *st2 = (TPaveStats*)hist2->FindObject("stats");
+//     st2->SetX1NDC(0.5); 
+//     st2->SetX2NDC(0.7);
+//     gPad->BuildLegend();
+}
