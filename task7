@@ -1,0 +1,47 @@
+#include <iostream>
+#include <TMath.h>
+#include "TTree.h"
+#include "TFile.h"
+#include <math.h>
+
+void task7(){
+    TFile oldfile("m3pimc.root", "read");
+    TTree *oldtree =(TTree *)oldfile.Get("h10");
+
+    ifstream oldfile_ci( "m3pimc.root", ios::binary | ios::ate); //weirdly getting size
+    double size_old =  oldfile_ci.tellg();
+
+    TFile oldishfile("oldishroot.root", "recreate");
+    auto oldishtree = oldtree->CopyTree("Isrfilter == 1 && chi2_3p<30");
+    oldishfile.Write();
+
+    oldishtree->SetBranchStatus("*", 0);
+    for (auto activeBranchName : {"nph", "eph", "thetaph", "phiph"})
+        oldishtree->SetBranchStatus(activeBranchName, 1);
+
+    TFile newfile("newroot.root", "recreate");
+    auto newtree = oldishtree->CloneTree();
+    newfile.Write();
+  
+    ifstream newfile_ci( "newroot.root", ios::binary | ios::ate); //again weirdly getting size
+    double size_new =  newfile_ci.tellg();
+    cout <<"old size: "<< size_old <<", new size: " << size_new<<endl;
+
+    double max = newtree->GetMaximum("eph");
+    double min = newtree->GetMinimum("eph");
+    cout << max << " " << min <<endl;
+
+    TCanvas *s = new TCanvas();
+    newtree->Draw("eph");
+    newtree -> GetHistogram()->GetXaxis()->SetTitle("energy");
+    newtree -> GetHistogram()->GetYaxis()->SetTitle("entries");
+    newtree -> GetHistogram()->SetTitle("photon enegy");
+    gPad->SetLogy();
+
+    // s->SaveAs("photon energy.png");
+    // TF1  *f1 = new TF1("f1","[0]*pow(x,-[1])*TMath::Exp(-[2]*x)",min,max);
+    // newtree-> Fit("f1","eph");
+
+    TF1  *f1 = new TF1("f1","308.999*pow(x,-1.346)*TMath::Exp(0.0600915*x)",min,max);
+    f1-> Draw("Same");
+}
