@@ -1,53 +1,51 @@
-#include <iostream>
-#include <TMath.h>
-#include <TF1.h>
-#include <math.h>
-using namespace std;
+#include <iostream> 
+#include <TMath.h> 
+#include <TF1.h>  
+#include <math.h> 
+#include <TCanvas.h>
+#include <TMarker.h>
+using namespace std; 
 
-// Метры, эВ, масса через c^2 в эв
-
-double psi(double *x, double *par){
-    return pow(2/TMath::Pi(),0.25)*1/sqrt(par[0])*exp(-pow(x[0],2)/pow(par[0],2));
-    }
-
-double scalar_expr(double *x, double *par){
-    double A = par[0];
-    double U;
-    if (fabs(x[0])>10*pow(10,-10)){
-        U=0;
-    }
-    else 
-        U = -0.5;
-    TF1 Psi("psi", psi,-10.*A, 10.*A,1);
-    Psi.SetParameter(0,A);
-    Psi.SetNormalized(1);
-    double result = Psi.Eval(x[0])*(-TMath::Hbar()*TMath::Hbar()*TMath::C()/(1.6*1.6 * pow(10,-32) *2*0.511)*Psi.Derivative2(x[0])+U*Psi.Eval(x[0]));
-    return result;
+Double_t psif(Double_t *x, Double_t *par){
+    return pow(2./TMath::Pi(), 0.25) * 1/sqrt(par[0]) * exp(-x[0]*x[0]/par[0]/par[0]);
 }
 
-double scal_prod(double *x, double *par){
-    TF1 scalar_exp("sc", scalar_expr,-10.*x[0],10.*x[0],1);
-    scalar_exp.SetParameter(0,x[0]);
-    return scalar_exp.Integral(-10.*x[0],10.*x[0]);
+Double_t scalar_expr(Double_t *x, Double_t *par){
+    Double_t xx = x[0];
+    Double_t a  = par[0];
+
+    TF1 psi("psi", psif, -10*a, 10*a, 1);
+    psi.SetParameter(0, a);
+
+    auto U = [](Double_t x) -> Double_t 
+        { return TMath::Abs(x) <= 10 ? -0.5 : 0; };
+    return psi.Eval(xx) * ( -3.81 * psi.Derivative2(xx) + U(xx) * psi.Eval(xx) ); // 3.81 = (ħ²)/(2m) в eV·Å²
 }
 
-void task3(){
-    ROOT::Math::IntegratorOneDimOptions::SetDefaultIntegrator("GAUSS");
-    double amin = 1e-14;
-    double amax = 1e-13;
-    TCanvas *s = new TCanvas();
-    TF1 *scalar_pr = new TF1("sp", scal_prod,amin,amax,0);
-    // scalar_pr->SetNpx(1000);
-    scalar_pr -> Draw();
-    double min = scalar_pr -> GetMinimumX(amin,amax);
-    cout << min;
+Double_t integral(Double_t *x, Double_t *par){
+    TF1 integrand("integrand", scalar_expr, -10*x[0], 10*x[0], 1);
+    integrand.SetParameter(0, x[0]);
+    return integrand.Integral(-10*x[0], 10*x[0]);
+}
 
-    // TF1 *wave_func = new TF1("wave_func", psi,-0.000000003,0.000000003,1);
-    // wave_func -> SetParameter(0,min);
-    // wave_func -> SetNormalized(1);
-    // wave_func -> Draw();
-    // wave_func->SetTitle("Wave function for particle in a box");
-    // wave_func->GetXaxis()->SetTitle("x");
-    // wave_func->GetYaxis()->SetTitle("#psi(x)");
-    // s->SaveAs("wave_func.pdf"); 
+void task3()
+{
+    TF1 *intgrl = new TF1("intgrl", integral, 5, 45);
+    TF1 *function = new TF1("func", psif, -25, 25, 1);
+    
+    Double_t a_opt = intgrl->GetMinimumX();
+    function->SetParameter(0, a_opt);
+
+    TCanvas *c1 = new TCanvas("c1", "Energy minimazer", 1200, 600);
+    c1->Divide(2, 1);
+    
+    c1->cd(1);
+    intgrl->SetTitle("<#psi|H|#psi>;a, [A];<#psi|H|#psi>, [eV]");
+    intgrl->Draw();
+
+    c1->cd(2);
+    TString sum = ""; sum.Form("%.2f", a_opt);
+    TString title = "#psi(x) for a = " + sum + ";x, [A]; #psi(x), [A^{-1/2}]";
+    function->SetTitle(title);
+    function->Draw();
 }
