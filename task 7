@@ -1,0 +1,96 @@
+#include <TFile.h>
+#include <TTree.h>
+#include <TH1F.h>
+#include <TF1.h>
+#include <TCanvas.h>
+#include <TStyle.h>
+#include <TSystem.h>
+#include <iostream>
+
+void task7(){
+    TFile *inputFile = new TFile("m3pimc.root", "READ");
+    TTree *inputTree = (TTree*)inputFile->Get("h10");
+
+    TFile *outputFile = new TFile("newroot.root", "RECREATE");
+
+    inputTree->SetBranchStatus("*", 0);
+    inputTree->SetBranchStatus("nph", 1);
+    inputTree->SetBranchStatus("eph", 1);
+    inputTree->SetBranchStatus("thetaph", 1);
+    inputTree->SetBranchStatus("phiph", 1);
+    inputTree->SetBranchStatus("Isrfilter", 1); 
+    inputTree->SetBranchStatus("chi2_3p", 1);
+
+    TTree *newTree = inputTree->CopyTree("Isrfilter == 1 && chi2_3p < 30");
+    newTree->SetName("MyTree");
+
+    newTree->SetBranchStatus("Isrfilter", 0);
+    newTree->SetBranchStatus("chi2_3p", 0);
+
+    outputFile->cd();
+    newTree->Write();
+
+    Long_t id_in, flags_in, modtime_in;
+    Long64_t inputSize;
+    gSystem->GetPathInfo("m3pimc.root", &id_in, &inputSize, &flags_in, &modtime_in);
+
+    Long_t id_out, flags_out, modtime_out;
+    Long64_t outputSize;
+    gSystem->GetPathInfo("newroot.root", &id_out, &outputSize, &flags_out, &modtime_out);
+
+    std::cout << "Коэффициент сжатия: " << static_cast<double>(inputSize) / static_cast<double>(outputSize) << std::endl;
+
+    Int_t nph;
+    Float_t eph[100]; 
+
+    newTree->SetBranchAddress("nph", &nph);
+    newTree->SetBranchAddress("eph", eph);
+
+    TH1F *hEnergy = new TH1F("hEnergy", "Energy Distribution of Photons;Energy (GeV);Entries", 100, 0, 10);
+    hEnergy->SetLineColor(kBlue);
+    hEnergy->SetFillColor(kBlue-10);
+
+    Double_t minEnergy = 1e9;
+    Double_t maxEnergy = -1e9;
+
+    Long64_t entries = newTree->GetEntries();
+    std::cout << "Количество событий после отбора: " << entries << std::endl;
+
+    for(Long64_t i = 0; i < entries; i++) {
+        newTree->GetEntry(i);
+        if (nph > 100) continue; // Пропускаем события с количеством фотонов больше размера массива
+        for(Int_t j = 0; j < nph; j++) {
+            if (eph[j] > 0) {
+                hEnergy->Fill(eph[j]);
+                if(eph[j] < minEnergy) minEnergy = eph[j];
+                if(eph[j] > maxEnergy) maxEnergy = eph[j];
+            }
+        }
+    }
+
+    std::cout << "Emin: " << minEnergy << " GeV" << std::endl;
+    std::cout << "Emax: " << maxEnergy << " GeV" << std::endl;
+
+    TCanvas *c1 = new TCanvas("c1", "Energy Distribution", 800, 600);
+    c1->SetGrid();
+    c1->SetLogy(); 
+    hEnergy->Draw();
+
+    Double_t fitMin = 0.1; 
+    Double_t fitMax = 10.0; 
+
+    TF1 *fit = new TF1("fit", "[0]*pow(x, [1])*exp(-[2]*x) + [3]*pow(x, [1])*exp(-[4]*x)", fitMin, fitMax);
+    fit->SetParameters(1e4, -1, 0.5, 1e3, 0.1); 
+    fit->SetParNames("A1", "n", "k1", "A2", "k2");
+    fit->SetLineColor(kRed);
+
+    fit->SetParLimits(1, -5, 0); 
+    fit->SetParLimits(2, 0, 10); 
+    fit->SetParLimits(4, 0, 10); 
+
+    hEnergy->Fit(fit, "R"); 
+
+    c1->Modified();
+    c1->Update();
+    c1->SaveAs("energy_distribution.png");
+}
