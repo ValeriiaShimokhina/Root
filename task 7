@@ -6,13 +6,14 @@
 #include <TStyle.h>
 #include <TSystem.h>
 #include <iostream>
+using namespace std; 
 
 void task7(){
-    TFile *inputFile = new TFile("m3pimc.root", "READ");
-    TTree *inputTree = (TTree*)inputFile->Get("h10");
+    TFile *inputFile = new TFile("m3pimc.root", "READ");   //открываем файл на чтение
+    TTree *inputTree = (TTree*)inputFile->Get("h10");      //достаём из файла дерево
 
-    TFile *outputFile = new TFile("newroot.root", "RECREATE");
-
+    TFile *outputFile = new TFile("newroot.root", "RECREATE");  // создаём новый файл
+    //записываем в него только нужные ветки:
     inputTree->SetBranchStatus("*", 0);
     inputTree->SetBranchStatus("nph", 1);
     inputTree->SetBranchStatus("eph", 1);
@@ -21,40 +22,36 @@ void task7(){
     inputTree->SetBranchStatus("Isrfilter", 1); 
     inputTree->SetBranchStatus("chi2_3p", 1);
 
-    TTree *newTree = inputTree->CopyTree("Isrfilter == 1 && chi2_3p < 30");
+    //пишем ещё одно дерево, теперь с ограничением Isrfilter == 1 && chi2_3p < 30
+    TTree *newTree = inputTree->CopyTree("Isrfilter == 1 && chi2_3p < 30"); 
     newTree->SetName("MyTree");
-
     newTree->SetBranchStatus("Isrfilter", 0);
     newTree->SetBranchStatus("chi2_3p", 0);
-
     outputFile->cd();
     newTree->Write();
 
+    //Получаем информацию о размере исходного и нового файлов для вычисления коэффициента сжатия
     Long_t id_in, flags_in, modtime_in;
     Long64_t inputSize;
-    gSystem->GetPathInfo("m3pimc.root", &id_in, &inputSize, &flags_in, &modtime_in);
-
+    gSystem->GetPathInfo("m3pimc.root", &id_in, &inputSize, &flags_in, &modtime_in); 
     Long_t id_out, flags_out, modtime_out;
     Long64_t outputSize;
     gSystem->GetPathInfo("newroot.root", &id_out, &outputSize, &flags_out, &modtime_out);
-
     std::cout << "Коэффициент сжатия: " << static_cast<double>(inputSize) / static_cast<double>(outputSize) << std::endl;
 
-    Int_t nph;
+    Int_t nph;  //число и энергия фотонов. И дальше выводим гистограмму
     Float_t eph[100]; 
-
     newTree->SetBranchAddress("nph", &nph);
     newTree->SetBranchAddress("eph", eph);
 
     TH1F *hEnergy = new TH1F("hEnergy", "Energy Distribution of Photons;Energy (GeV);Entries", 100, 0, 10);
     hEnergy->SetLineColor(kBlue);
-    hEnergy->SetFillColor(kBlue-10);
 
     Double_t minEnergy = 1e9;
     Double_t maxEnergy = -1e9;
 
     Long64_t entries = newTree->GetEntries();
-    std::cout << "Количество событий после отбора: " << entries << std::endl;
+    cout << "Количество событий после отбора: " << entries << std::endl;
 
     for(Long64_t i = 0; i < entries; i++) {
         newTree->GetEntry(i);
@@ -68,8 +65,8 @@ void task7(){
         }
     }
 
-    std::cout << "Emin: " << minEnergy << " GeV" << std::endl;
-    std::cout << "Emax: " << maxEnergy << " GeV" << std::endl;
+    cout << "Emin: " << minEnergy << " GeV" << std::endl;
+    cout << "Emax: " << maxEnergy << " GeV" << std::endl;
 
     TCanvas *c1 = new TCanvas("c1", "Energy Distribution", 800, 600);
     c1->SetGrid();
