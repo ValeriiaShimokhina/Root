@@ -6,22 +6,24 @@
 #include <TMarker.h>
 using namespace std; 
 
+//волновая функция, из условия. Принимает x и параметр a
 Double_t psif(Double_t *x, Double_t *par){
     return pow(2./TMath::Pi(), 0.25) * 1/sqrt(par[0]) * exp(-x[0]*x[0]/par[0]/par[0]);
 }
 
+// функция для счёта подынтегрального выражения  <psi|H|psi>
 Double_t scalar_expr(Double_t *x, Double_t *par){
-    Double_t xx = x[0];
-    Double_t a  = par[0];
 
-    TF1 psi("psi", psif, -10*a, 10*a, 1);
+    Double_t a  = par[0];
+    TF1 psi("psi", psif, -10*a, 10*a, 1);    //класс TF1 - одномерная функция с заданным диапазоном аргумента
     psi.SetParameter(0, a);
 
-    auto U = [](Double_t x) -> Double_t 
-        { return TMath::Abs(x) <= 10 ? -0.5 : 0; };
-    return psi.Eval(xx) * ( -3.81 * psi.Derivative2(xx) + U(xx) * psi.Eval(xx) ); // 3.81 = (ħ²)/(2m) в eV·Å²
+    auto U = [](Double_t x) -> Double_t       //конечная яма
+        { return TMath::Abs(x) <= 10 ? -0.5 : 0; };  
+    return psi.Eval(x[0]) * ( -3.81 * psi.Derivative2(x[0]) + U(x[0]) * psi.Eval(x[0]) ); // 3.81 = (ħ²)/(2m) в eV·Å²
 }
 
+//интегрируем <psi|H|psi> из предыдущей функции:
 Double_t integral(Double_t *x, Double_t *par){
     TF1 integrand("integrand", scalar_expr, -10*x[0], 10*x[0], 1);
     integrand.SetParameter(0, x[0]);
@@ -30,21 +32,26 @@ Double_t integral(Double_t *x, Double_t *par){
 
 void task3()
 {
+    //вызываем наши функции:
     TF1 *intgrl = new TF1("intgrl", integral, 5, 45);
     TF1 *function = new TF1("func", psif, -25, 25, 1);
     
-    Double_t a_opt = intgrl->GetMinimumX();
-    function->SetParameter(0, a_opt);
+    //ищем a при котором интеграл минимален:
+    Double_t a_min = intgrl->GetMinimumX();
+    function->SetParameter(0, a_min);
 
+    //создали холст из двух графиков:
     TCanvas *c1 = new TCanvas("c1", "Energy minimazer", 1200, 600);
     c1->Divide(2, 1);
     
+    //первый график - функция <psi|H|psi> от а. Наглядно видно оптимальный а:
     c1->cd(1);
     intgrl->SetTitle("<#psi|H|#psi>;a, [A];<#psi|H|#psi>, [eV]");
     intgrl->Draw();
 
+    //второй график - волновая функция для оптимального а:
     c1->cd(2);
-    TString sum = ""; sum.Form("%.2f", a_opt);
+    TString sum = ""; sum.Form("%.2f", a_min);
     TString title = "#psi(x) for a = " + sum + ";x, [A]; #psi(x), [A^{-1/2}]";
     function->SetTitle(title);
     function->Draw();
