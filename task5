@@ -5,10 +5,14 @@
 using namespace std;
 int N = 1e6;
 
+//Метод от обратного. генерим равномерно рандомные числа r от 0 до 1 (такой метод), 
+//приравниваем их к интегралу функции на отрезке [0,1] (из условия).
+//Полученное значение x будет распределено по требуемому закону f(x). Рисуем
 void reverse_method(){
     TCanvas *cs = new TCanvas();
     TH1D* hist = new TH1D("h","distribution; x; entries",300,-10.0,10.0);
-    TRandom3 *rand = new TRandom3(0);
+
+    TRandom3 *rand = new TRandom3(0);   
     for (int  i=0; i<N;i++){
         double r = rand->Rndm();
         double x = sqrt(-TMath::Log(1-r));
@@ -17,6 +21,7 @@ void reverse_method(){
     hist->Draw();
 }
 
+//Вычисляем среднее значение функции на интервале и умножить на размер интервала ~ интегрированием прямоугольниками
 double int_mean(){
     double sum;
     TRandom3 *rand = new TRandom3(0); 
@@ -27,6 +32,7 @@ double int_mean(){
     return sum/N;
 }
 
+//геометрический интеграл. Рандомно генерим x и y, если точка попала под функцию (F(x)>y) - хорошо, считаем.
 double int_geom(){
     float n =0;
     TRandom3 *rand = new TRandom3(0);
@@ -40,6 +46,9 @@ double int_geom(){
     }
     return n * M /N;
 }
+
+//Главная часть. Подбераем функцию с похожим поведением, но с возможностью моделирования величины 
+//с помощью метода обратных функций.
 
 double int_appr(){
     double sum =0.;
@@ -57,7 +66,7 @@ void task5(){
 //reverse_method();
 
 //second:
-    double Icorr = 6 - 16/TMath::E();
+    double Icorr = 6 - 16/TMath::E();  //а это точное значение интеграла:
     double I1 = int_mean();        
     cout <<"Интеграл через среднее значение: " << I1 << ". Разница: "<< fabs(I1-Icorr) << endl;
     double I2 = int_geom(); 
