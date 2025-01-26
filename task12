@@ -1,0 +1,52 @@
+#include <iostream>
+#include <fstream>
+#include <TCanvas.h>
+#include <TH1D.h>
+#include <TF1.h>
+#include <TMath.h>
+#include <TStyle.h>
+using namespace std; 
+
+// Функция для фитинга методом "P" с экспоненциальным спадом и гауссианом
+double fitFunction(double *x, double *par) {
+    double exp = par[0] * TMath::Exp(-par[1] * x[0]); //Экспоненциальный спад
+    double gaus = par[2] * TMath::Gaus(x[0], 5.0, 1.0, true);  //Гауссиан с средним 5.0 и среднеквадратичным 1.0
+    double linear = par[3] * (x[0] - 5.0); // Линейная поправка
+    return exp + gaus + linear;
+}
+
+//Функция для заполнения гистограммы
+void FillHistogram(TH1D *hist, const string &filename) {
+    ifstream inFile(filename);
+    double value;
+    while (inFile >> value) {hist->Fill(value);}
+    inFile.close();
+}
+
+void task12() {
+    gStyle->SetOptFit(1111);
+    TH1D *hist = new TH1D("hist", "Distribution data from task10Nov.dat;mm;yields / 0.1 mm", 100, 0, 10);
+    hist->Sumw2();
+    FillHistogram(hist, "task10Nov.dat");
+    TF1 *fitFunc = new TF1("fitFunc", fitFunction, 0, 10, 4);
+
+    //Начальные значения, наугад:
+    fitFunc->SetParameter(0, 30);   //Амплитуда экспоненты
+    fitFunc->SetParameter(1, 0.6);  //Коэффициент экспоненты
+    fitFunc->SetParameter(2, 55.0); //Амплитуда гаусса
+    fitFunc->SetParameter(3, 1.0);  //Наклон линейной части
+
+    //Ограничения параметров:
+    fitFunc->SetParLimits(0, 20, 40);
+    fitFunc->SetParLimits(1, 0.5, 0.7);
+    fitFunc->SetParLimits(2, 50.0, 60.0);
+    fitFunc->SetParLimits(3, 1, 2);
+
+    TFitResultPtr fitRes = hist->Fit(fitFunc, "PS");
+
+    TCanvas *c1 = new TCanvas("c1", "Diagnostic Fit", 1200, 600);
+    hist->SetLineColor(kBlue);
+    hist->Draw("HIST");
+    fitFunc->SetLineColor(kRed);
+    fitFunc->Draw("same");
+}
