@@ -1,25 +1,26 @@
 #include <TMath.h> 
 #include <TF1.h> 
 #include <TCanvas.h>
+#include <iostream>
 using namespace std; 
 
-//волновая функция, из условия. Принимает x и параметр a
+//Волновая функция, из условия. Принимает x и параметр a:
 Double_t psifunc(Double_t *x, Double_t *par){
     return pow(2./TMath::Pi(), 0.25) * 1/sqrt(par[0]) * exp(-x[0]*x[0]/par[0]/par[0]);
 }
 
-// функция для счёта подынтегрального выражения <psi|H|psi>
+//Функция для счёта подынтегрального выражения <psi|H|psi>:
 Double_t scalar_expr(Double_t *x, Double_t *par){
     Double_t a  = par[0];
-    TF1 psi("psi", psifunc, -10*a, 10*a, 1);  //класс TF1 - одномерная функция с заданным диапазоном аргумента
-    psi.SetParameter(0, a);
     Double_t U;
     if (fabs(x[0])<=10) U=-0.5;
-    else U = 0;  
+    else U = 0; 
+    TF1 psi("psi", psifunc, -10*a, 10*a, 1);  //Класс TF1 - одномерная функция с заданным диапазоном аргумента
+    psi.SetParameter(0, a);
     return psi.Eval(x[0]) * ( -3.81*psi.Derivative2(x[0]) + U * psi.Eval(x[0]) ); // 3.81 = (ħ²)/(2m) в eV·Å²
 }
 
-//интегрируем <psi|H|psi> из предыдущей функции:
+//Интегрируем <psi|H|psi> из предыдущей функции:
 Double_t integral(Double_t *x, Double_t *par){
     TF1 integrand("integrand", scalar_expr, -10*x[0], 10*x[0], 1);
     integrand.SetParameter(0, x[0]);
@@ -27,15 +28,15 @@ Double_t integral(Double_t *x, Double_t *par){
 }
 
 void task3(){
-    //вызываем функции:
+    //Вызываем функции:
     TF1 *integ = new TF1("integ", integral, 5, 45);
     TF1 *func = new TF1("func", psifunc, -25, 25, 1);
     
-    //ищем a при котором интеграл минимален:
+    //Ищем a при котором интеграл минимален:
     Double_t a0 = integ->GetMinimumX();
     func->SetParameter(0, a0);
 
-    //волновая функция для оптимального а:
+    //Волновая функция для оптимального а:
     TCanvas *c1 = new TCanvas("c1", "Energy minimazer", 1200, 600);
     TString sum = ""; sum.Form("%.2f", a0);
     func->SetTitle("#psi(x) for a = " + sum + ";x, [A]; #psi(x), [A^{-1/2}]");
