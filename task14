@@ -1,0 +1,90 @@
+#include <TH1.h>
+#include <TMath.h>
+#include <TF1.h>
+#include <TVirtualFFT.h>
+#include <TCanvas.h>
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+void FillHist(TH1D *hist, TString filename) {
+    ifstream ifile(filename, ios::in);
+    double x;
+    int i = 1;
+    while (ifile >> x) {
+        hist->SetBinContent(i++, x);
+    }
+    ifile.close();
+}
+
+void task14() {
+    int nPoints = 500;
+    TH1D *signalH = new TH1D("signalH", "Signal;t, [ns];U, [mV]", nPoints, 0, nPoints);
+    FillHist(signalH, "dataFFT.dat");
+
+    // Преобразование Фурье
+    TH1 *magnitudeSpectrum = signalH->FFT(NULL, "MAG");
+    magnitudeSpectrum->Scale(1.0 / nPoints);
+    TH1 *phaseSpectrum = signalH->FFT(NULL, "PH");
+
+    // Фильтрация
+    TVirtualFFT *fft = TVirtualFFT::GetCurrentTransform();
+    double *re = new double[nPoints];
+    double *im = new double[nPoints];
+    fft->GetPointsComplex(re, im);
+    int filterCutoff = 8; //параметр фильтра
+
+    for (int i = filterCutoff; i < nPoints; ++i) {
+        re[i] = 0;
+        im[i] = 0;
+    }
+
+    // Обратное преобразование Фурье
+    TVirtualFFT *invFFT = TVirtualFFT::FFT(1, &nPoints, "C2R M K");
+    invFFT->SetPointsComplex(re, im);
+    invFFT->Transform();
+    TH1 *filteredSignalH = TH1::TransformHisto(invFFT, nullptr, "Re");
+    filteredSignalH->Scale(1.0 / nPoints);
+
+    // Поиск времени достижения 20% от амплитуды
+    double maxSignal = filteredSignalH->GetMaximum();
+    double threshold = 0.2 * maxSignal;
+    int timeAtThreshold = 0;
+    for (int i = 1; i <= nPoints; ++i) {
+        if (filteredSignalH->GetBinContent(i) >= threshold) {
+            timeAtThreshold = i;
+            break;
+        }
+    }
+
+    //Вывод результатов
+    cout << "Maximum signal amplitude: " << maxSignal << " mV" << endl;
+    cout << "Time at 20% of maximum: " << timeAtThreshold << " ns" << endl;
+
+    // Построение графиков
+    TCanvas *canvas = new TCanvas("canvas", "FFT Results", 1200, 1000);
+    canvas->Divide(2, 2);
+
+    canvas->cd(1);
+    signalH->Draw();
+    canvas->cd(2);
+    magnitudeSpectrum->Draw();
+    canvas->cd(3);
+    phaseSpectrum->Draw();
+    canvas->cd(4);
+    filteredSignalH->Draw();
+
+    // Добавим горизонтальную линию на 20% от максимума
+    TF1 *thresholdLine = new TF1("thresholdLine", Form("%f", threshold), 0, nPoints);
+    thresholdLine->SetLineStyle(2); // пунктирная линия
+    thresholdLine->Draw("same");
+
+    canvas->SaveAs("fft_results.png");
+    delete signalH;
+    delete magnitudeSpectrum;
+    delete phaseSpectrum;
+    delete filteredSignalH;
+    delete thresholdLine;
+    delete[] re;
+    delete[] im;
+}
