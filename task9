@@ -1,0 +1,106 @@
+#include <TFile.h>
+#include <TTree.h>
+#include <TCanvas.h>
+#include <TGraphErrors.h>
+#include <TAxis.h>
+#include <TLegend.h>
+#include <TH1F.h>
+#include <TMath.h>
+#include <iostream>
+#include <vector>
+using namespace std; 
+
+void task9() {
+    //Открываем файл:
+    TFile *resultsFile = new TFile("results.root", "UPDATE");
+    TTree *candTree = (TTree *)resultsFile->Get("Pi0CandidatesTree");
+
+    Float_t theta_pi0, phi_pi0;
+    candTree->SetBranchAddress("theta_pi0", &theta_pi0);
+    candTree->SetBranchAddress("phi_pi0", &phi_pi0);
+
+    //Параметры бинов:
+    const int nbins_theta = 18; // 180 градусов, шаг 10
+    const int nbins_phi = 36;   // 360 градусов, шаг 10
+    const double binWidth = 10.0;
+
+    //Векторы для хранения данных:
+    vector<double> thetaCenters(nbins_theta), phiCenters(nbins_phi);
+    vector<double> thetaCounts(nbins_theta, 0), phiCounts(nbins_phi, 0);
+    vector<double> thetaErrors(nbins_theta, 0), phiErrors(nbins_phi, 0);
+
+    //Заполнение центров бинов
+    for (int i = 0; i < nbins_theta; ++i)  thetaCenters[i] = binWidth *(i + 0.5);
+    for (int i = 0; i < nbins_phi; ++i)    phiCenters[i] = binWidth *(i + 0.5);   
+    
+    // Заполнение гистограмм    
+    Long64_t nEntries = candTree->GetEntries();
+
+    for (long long i = 0; i < nEntries; ++i) {
+        candTree->GetEntry(i);
+        if (phi_pi0 < 0)   phi_pi0 += 2 * TMath::Pi();  //если ф отрицательный +2pi
+        int thetaBin = static_cast<int>(theta_pi0 * 180.0 / TMath::Pi() / 10); 
+        int phiBin = static_cast<int>(phi_pi0 * 180.0 / TMath::Pi() / 10);
+        if (thetaBin >= 0 && thetaBin < nbins_theta)    thetaCounts[thetaBin]++;
+        if (phiBin >= 0 && phiBin < nbins_phi)      phiCounts[phiBin]++;
+    }
+
+    //Считаем ошибки (корень из числа событий):
+    for (int i = 0; i < nbins_theta; ++i)  thetaErrors[i] = TMath::Sqrt(thetaCounts[i]);
+    for (int i = 0; i < nbins_phi; ++i)    phiErrors[i] = TMath::Sqrt(phiCounts[i]);
+
+    // Расчет распределения и дисперсии
+    TH1F *h_theta = new TH1F("h_theta", "Distribution by #theta", nbins_theta, 0, 180);
+    TH1F *h_phi = new TH1F("h_phi", "Distribution by #phi", nbins_phi, 0, 360);
+    for (size_t i = 0; i < thetaCounts.size(); ++i) h_theta->SetBinContent(i + 1, thetaCounts[i]);
+    for (size_t i = 0; i < phiCounts.size(); ++i) h_phi->SetBinContent(i + 1, phiCounts[i]);
+
+    double mean_theta = h_theta->GetMean();
+    double mean_phi = h_phi->GetMean();
+    double rms_theta = h_theta->GetRMS();
+    double rms_phi = h_phi->GetRMS();
+    double dispertion_theta = pow(rms_theta,2);
+    double dispertion_phi = pow(rms_phi, 2);
+
+    //Рисуем графики:
+    TCanvas *canvas = new TCanvas("canvas_task9", "Task 9 Results", 1200, 600);
+    canvas->Divide(2, 1);
+
+    TGraphErrors *thetaGraph = new TGraphErrors(nbins_theta, thetaCenters.data(), thetaCounts.data(), nullptr, thetaErrors.data());
+    thetaGraph->SetTitle("#pi^{0} Candidates vs Polar Angle;Polar Angle (deg);N of Candidates");
+    thetaGraph->SetMarkerStyle(21); //квадрат
+    thetaGraph->SetMarkerColor(kRed);
+
+    TGraphErrors *phiGraph = new TGraphErrors(nbins_phi, phiCenters.data(), phiCounts.data(), nullptr, phiErrors.data());
+    phiGraph->SetTitle("#pi^{0} Candidates vs Azimuthal Angle;Azimuthal Angle (deg);N of Candidates");
+    phiGraph->SetMarkerStyle(21); //квадрат
+    phiGraph->SetMarkerColor(kBlue);
+
+    // Легенда
+    TLegend* legend = new TLegend(0.6, 0.7, 0.9, 0.9);
+    legend->AddEntry(thetaGraph, "#theta", "p");
+    legend->AddEntry(phiGraph, "#phi", "p");
+
+    canvas->cd(1);
+    thetaGraph->Draw("AP");
+    legend->Draw("same");
+
+    canvas->cd(2);
+    phiGraph->Draw("AP");
+    legend->Draw("same");
+
+    cout << "Среднее значение #theta: " << mean_theta << endl;
+    cout << "Среднее значение #phi: " << mean_phi << endl;
+    cout << "Дисперсия #theta: " << dispertion_theta << endl;
+    cout << "Дисперсия #phi: " << dispertion_phi << endl;
+
+    TDirectory *task9Dir = (TDirectory *)resultsFile->Get("Task9");
+    if (!task9Dir)    task9Dir = resultsFile->mkdir("Task9");
+    task9Dir->cd();
+    thetaGraph->Write("Graph_theta");
+    phiGraph->Write("Graph_phi");
+    h_theta->Write("Hist_theta");
+    h_phi->Write("Hist_phi");
+    canvas->Write("Task9_Canvas");
+    resultsFile->Close();
+}
