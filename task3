@@ -36,8 +36,13 @@ void task3(){
     Double_t a0 = integ->GetMinimumX();
     func->SetParameter(0, a0);
 
-    //Волновая функция для оптимального а:
+    //Рисуем:
     TCanvas *c1 = new TCanvas("c1", "Energy minimazer", 1200, 600);
+    c1->Divide(2, 1);
+    c1->cd(1);
+    integ->SetTitle("<#psi|H|#psi>;a, [A];<#psi|H|#psi>, [eV]");
+    integ->Draw();
+    c1->cd(2);
     TString sum = ""; sum.Form("%.2f", a0);
     func->SetTitle("#psi(x) for a = " + sum + ";x, [A]; #psi(x), [A^{-1/2}]");
     func->Draw();
