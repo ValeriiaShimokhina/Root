@@ -36,12 +36,6 @@ void task12() {
     fitFunc->SetParameter(2, 55.0); //Амплитуда гаусса
     fitFunc->SetParameter(3, 1.0);  //Наклон линейной части
 
-    //Ограничения параметров:
-    fitFunc->SetParLimits(0, 20, 40);
-    fitFunc->SetParLimits(1, 0.5, 0.7);
-    fitFunc->SetParLimits(2, 50.0, 60.0);
-    fitFunc->SetParLimits(3, 1, 2);
-
     TFitResultPtr fitRes = hist->Fit(fitFunc, "PS");
 
     TCanvas *c1 = new TCanvas("c1", "Diagnostic Fit", 1200, 600);
